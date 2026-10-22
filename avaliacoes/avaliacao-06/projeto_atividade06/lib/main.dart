@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
         title: 'Namer App',
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         ),
         home: MyHomePage(),
       ),
@@ -33,28 +33,184 @@ class MyAppState extends ChangeNotifier {
     notifyListeners();
   }
 
+   var favorites = <WordPair>[];
+
+   void toggleFavorite() {
+    if (favorites.contains(current)) {
+      favorites.remove(current);
+    } else {
+      favorites.add(current);
+    }
+    notifyListeners();
+  }
+
 }
 
-class MyHomePage extends StatelessWidget {
+// ...
+
+class MyHomePage extends StatefulWidget {
   @override
-  Widget build(BuildContext context) { //Cada widget define um método build() que é chamado automaticamente sempre que as circunstâncias do widget mudam, para que ele fique sempre atualizado.
-    var appState = context.watch<MyAppState>(); //widget MyHomePage rastreia mudanças no estado atual do app usando o método watch.
+  State<MyHomePage> createState() => _MyHomePageState();
+}
 
-    return Scaffold( //Cada método build precisa retornar um widget ou (o que é mais comum) uma árvore aninhada de widgets. Nesse caso, o widget de nível superior é Scaffold. Você não vai trabalhar com Scaffold neste codelab, mas ele é um widget útil e pode ser encontrado na grande maioria dos apps do Flutter do mundo real.
-      body: Column( //A Column é um dos widgets de layout mais básicos do Flutter. Ela recebe qualquer número de filhos e os coloca em uma coluna de cima para baixo. Por padrão, a coluna coloca os filhos visualmente no topo. Em breve, você vai mudar isso para que a coluna fique centralizada.
+class _MyHomePageState extends State<MyHomePage> {
+
+  var selectedIndex = 0;
+  @override
+  Widget build(BuildContext context) {
+
+Widget page;
+switch (selectedIndex) {
+  case 0:
+    page = GeneratorPage();
+    break;
+  case 1:
+    page = FavoritesPage();
+    break;
+  default:
+    throw UnimplementedError('no widget for $selectedIndex');
+}
+
+
+    return LayoutBuilder(
+      builder: (context,constraints) {
+        return Scaffold(
+          body: Row(
+            children: [
+              SafeArea(
+                child: NavigationRail(
+                  extended: constraints.maxWidth >= 600,
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.home),
+                      label: Text('Home'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.favorite),
+                      label: Text('Favorites'),
+                    ),
+                  ],
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (value) {
+                     setState(() {
+                      selectedIndex = value;
+                    });
+                  },
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: page,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+}
+
+class GeneratorPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+    var pair = appState.current;
+
+    IconData icon;
+    if (appState.favorites.contains(pair)) {
+      icon = Icons.favorite;
+    } else {
+      icon = Icons.favorite_border;
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Hello, World!:'), //Você mudou o widget Text na primeira etapa.
-
-          Text(appState.current.asLowerCase), //Este segundo widget Text usa o appState e acessa o único membro dessa classe, current (que é um WordPair). O WordPair fornece vários getters úteis, como asPascalCase ou asSnakeCase. Aqui, usamos asLowerCase, mas você pode alterar isso agora caso prefira uma das alternativas.
-
-	  ElevatedButton(
-		onPressed: () {
-		   appState.getNext();
-		},
-		child: Text("Next"),
-	      ),	
-        ], //Observe como o código do Flutter faz um uso intenso de vírgulas à direita. Essa vírgula específica não precisa estar ali, porque children é o último (e também o único) membro dessa lista de parâmetros Column. No entanto, costuma ser uma boa ideia usar vírgulas à direita: elas facilitam adicionar mais membros e também servem como uma dica para o autoformatador do Dart colocar uma nova linha ali. Para mais informações, consulte Formatação de código (link em inglês).
+          BigCard(pair: pair),
+          SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  appState.toggleFavorite();
+                },
+                icon: Icon(icon),
+                label: Text('Like'),
+              ),
+              SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: () {
+                  appState.getNext();
+                },
+                child: Text('Next'),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// ...
+
+class FavoritesPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+
+    if (appState.favorites.isEmpty) {
+      return Center(
+        child: Text('No favorites yet.'),
+      );
+    }
+
+    return ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text('You have '
+              '${appState.favorites.length} favorites:'),
+        ),
+        for (var pair in appState.favorites)
+          ListTile(
+            leading: Icon(Icons.favorite),
+            title: Text(pair.asLowerCase),
+          ),
+      ],
+    );
+  }
+}
+
+class BigCard extends StatelessWidget {
+  const BigCard({
+    super.key,
+    required this.pair,
+  });
+
+  final WordPair pair;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context); 
+    final style = theme.textTheme.displayMedium!.copyWith(
+      color: theme.colorScheme.onPrimary,
+    );
+    return Card(
+      color: theme.colorScheme.primary,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+
+         child: Text(
+          pair.asLowerCase,
+          style: style,
+          semanticsLabel: "${pair.first} ${pair.second}",
+      ),
+    ),
     );
   }
 }
